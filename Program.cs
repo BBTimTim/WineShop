@@ -55,7 +55,7 @@ builder.Services.AddSession(options =>
     options.IsEssential = true;                     // Essential for cart functionality to bypass GDPR cookie consent
 });
 
-builder.Services.AddScoped<IShoppingCartService, MobileShop.Services.ShoppingCartService>();
+builder.Services.AddScoped<IShoppingCartService, Winery.Services.ShoppingCartService>();
 
 var app = builder.Build();
 

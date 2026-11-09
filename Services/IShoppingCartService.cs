@@ -143,5 +143,21 @@ namespace Winery.Services
             _context.ShoppingCartItems.RemoveRange(cartItems);
             await _context.SaveChangesAsync();
         }
+
+        public async Task MigrateCartAsync(string userId)
+        {
+            var cartId = GetCartId();
+            var cartItems = await _context.ShoppingCartItems
+                .Where(c => c.CartId == cartId)
+                .ToListAsync();
+
+            foreach (var item in cartItems)
+            {
+                item.CartId = userId;
+            }
+
+            await _context.SaveChangesAsync();
+            _httpContextAccessor.HttpContext?.Session.Remove("CartId");
+        }
     }
 }
