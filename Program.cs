@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Stripe;
 using Winery.Data;
 using Winery.Models;
 using Winery.Services;
@@ -12,7 +14,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 
 builder.Services.AddDbContext<WineryDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options
+        .UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
+        .ConfigureWarnings(warnings =>
+            warnings.Log(RelationalEventId.PendingModelChangesWarning)));
 
 builder.Services.AddIdentity<User, IdentityRole>(options =>
 {
@@ -33,31 +38,32 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("CustomerOnly", policy => policy.RequireRole("Customer"));
 });
 
-builder.Services.AddDistributedMemoryCache();
-builder.Services.AddSession(options =>
-{
-    options.IdleTimeout = TimeSpan.FromMinutes(30);
-    options.Cookie.HttpOnly = true;
-    options.Cookie.IsEssential = true;
-});
-
-builder.Services.AddAutoMapper(_ => { }, typeof(Program).Assembly);
-
-builder.Services.AddScoped<IProductService, Winery.Services.ProductService>();
-
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
     options.IdleTimeout = TimeSpan.FromMinutes(30); // Cart expires after 30 mins of inactivity
-    options.HttpOnly = true;                        // Security: Prevents XSS attacks from reading session cookie
-    options.IsEssential = true;                     // Essential for cart functionality to bypass GDPR cookie consent
+    options.Cookie.HttpOnly = true;                        // Security: Prevents XSS attacks from reading session cookie
+    options.Cookie.IsEssential = true;                     // Essential for cart functionality to bypass GDPR cookie consent
 });
 
+// Stripe Configuration
+builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));
+
+builder.Services.AddScoped<IProductService, Winery.Services.ProductService>();
 builder.Services.AddScoped<IShoppingCartService, Winery.Services.ShoppingCartService>();
+builder.Services.AddScoped<IFileService, Winery.Services.FileService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IReportService, ReportService>();
+
+builder.Services.AddAutoMapper(_ => { }, typeof(Program).Assembly);
 
 var app = builder.Build();
+
+// Apply migrations and ensure Identity roles exist before handling requests.
+await DbInitializer.SeedAsync(app.Services);
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
@@ -72,13 +78,18 @@ app.UseStaticFiles();
 app.UseRouting();
 app.UseSession();
 
+StripeConfiguration.ApiKey = builder.Configuration["Stripe:SecretKey"];
+
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapControllerRoute(
+    name: "areas",
+    pattern: "{area:exists}/{controller=Dashboard}/{action=Index}/{id?}");
 
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
-
 
 app.Run();

@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualStudio.Web.CodeGenerators.Mvc.Templates.BlazorIdentity.Pages;
 using Stripe;
+using Stripe.Climate;
 using Winery.Models;
 using Winery.Services;
 using Winery.ViewModels;
@@ -15,21 +17,27 @@ namespace Winery.Controllers
         private readonly UserManager<User> _userManager;
         private readonly SignInManager<User> _signInManager;
         private readonly RoleManager<IdentityRole> _roleManager;
-        private readonly WineryDbContext _context; 
+        private readonly WineryDbContext _context;
         private readonly IShoppingCartService _cartService;
+        private readonly IOrderService _orderService;
+        private readonly IFileService _fileService;
 
         public AccountController(
            UserManager<User> userManager,
            SignInManager<User> signInManager,
            RoleManager<IdentityRole> roleManager,
            WineryDbContext context, 
-           IShoppingCartService cartService, IFileService fileService)
+           IShoppingCartService cartService, 
+           IFileService fileService,
+           IOrderService orderService)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _roleManager = roleManager;
             _context = context; 
             _cartService = cartService;
+            _fileService = fileService;
+            _orderService = orderService;
         }
          
         [HttpGet]
@@ -53,7 +61,7 @@ namespace Winery.Controllers
 
             var user = new User
             {
-                UserName = model.Email,
+                UserName = model.Username,
                 Email = model.Email,
                 FirstName = model.FirstName,
                 LastName = model.LastName,
@@ -65,7 +73,19 @@ namespace Winery.Controllers
 
             if (result.Succeeded)
             {
-                await _userManager.AddToRoleAsync(user, "Customer");
+                var roleResult = await _userManager.AddToRoleAsync(user, "Customer");
+
+                if (!roleResult.Succeeded)
+                {
+                    foreach (var error in roleResult.Errors)
+                    {
+                        ModelState.AddModelError(string.Empty, error.Description);
+                    }
+
+                    // Do not sign in a user whose required role was not assigned.
+                    await _userManager.DeleteAsync(user);
+                    return View(model);
+                }
 
                 await _signInManager.SignInAsync(user, isPersistent: false);
                 return RedirectToAction("Index", "Home");
@@ -98,16 +118,16 @@ namespace Winery.Controllers
                 return View(model);
 
             var result = await _signInManager.PasswordSignInAsync(
-                model.Email, model.Password, model.RememberMe, lockoutOnFailure: false);
+                model.Username, model.Password, model.RememberMe, lockoutOnFailure: false);
 
             if (result.Succeeded)
             {
 
                 // Migrate cart
-                var user = await _userManager.FindByEmailAsync(model.Email);
+                var user = await _userManager.FindByNameAsync(model.Username);
                 if (user != null)
                 {
-                    await _cartService.w    1e3ewerew0243MigrateCartAsync(user.Id);
+                    await _cartService.MigrateCartAsync(user.Id);
                 }
 
                 if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
@@ -321,6 +341,100 @@ namespace Winery.Controllers
         public IActionResult AccessDenied()
         {
             return View();
+        }
+
+
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> AddToWishlist(int productId)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+                return Unauthorized();
+
+            var checkwishlist = _context.WishlistItems.Where(w => w.ProductId == productId && w.UserId == user.Id).FirstOrDefault();
+            if (checkwishlist == null)
+            {
+                if (!user.WishlistItems.Any(w => w.ProductId == productId))
+                {
+                    user.WishlistItems.Add(new WishlistItem
+                    {
+                        ProductId = productId,
+                        UserId = user.Id
+                    });
+                    await _userManager.UpdateAsync(user);
+                }
+                return Json(new { success = true, message = "Added to wishlist!" });
+            }
+            return Json(new { success = true, message = "Already Added!" });
+        }
+
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> Wishlist()
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+                return NotFound();
+
+            var wishlistItems = await _context.WishlistItems
+                .Include(w => w.Product)
+                    .ThenInclude(p => p.Brand)
+                .Include(w => w.Product)
+                    .ThenInclude(p => p.Reviews)
+                .Where(w => w.UserId == user.Id)
+                .OrderByDescending(w => w.AddedAt)
+                .ToListAsync();
+
+            ViewBag.CartItemCount = await _cartService.GetCartItemCountAsync();
+            return View(wishlistItems);
+        }
+
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> RemoveFromWishlist(int productId)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+                return Unauthorized();
+
+            // Load the specific item directly using context
+            var item = await _context.WishlistItems
+                .FirstOrDefaultAsync(w => w.UserId == user.Id && w.ProductId == productId);
+
+            if (item != null)
+            {
+                _context.WishlistItems.Remove(item);
+                await _context.SaveChangesAsync();
+            }
+
+            return Json(new { success = true, message = "Removed from wishlist!" });
+        }
+
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> Orders()
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+                return NotFound();
+
+            var orders = await _orderService.GetUserOrdersAsync(user.Id);
+            ViewBag.CartItemCount = await _cartService.GetCartItemCountAsync();
+
+            return View(orders);
+        }
+
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> OrderDetails(int id)
+        {
+            var order = await _orderService.GetOrderByIdAsync(id);
+            if (order == null)
+                return NotFound();
+
+            ViewBag.CartItemCount = await _cartService.GetCartItemCountAsync();
+            return View(order);
         }
     }
 }

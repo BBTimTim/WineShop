@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Winery.Models 
 {
@@ -15,8 +16,11 @@ namespace Winery.Models
         [StringLength(500)]
         public string? Description { get; set; }
 
-        [StringLength(255)]
         [Display(Name = "Logo URL")]
+        [NotMapped]
+        public IFormFile? BrandLogo { get; set; }
+
+        [StringLength(255)]
         public string? LogoUrl { get; set; }
 
         [StringLength(100)]

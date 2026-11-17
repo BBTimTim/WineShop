@@ -44,7 +44,6 @@
             <div class="ps-lg-4">
                 <p class="text-muted mb-1">@Model.Product.Brand?.Name</p>
                 <h2>@Model.Product.Name</h2>
-                <p class="text-muted">@Model.Product.Model</p>
 
                 <!-- Rating -->
                 <div class="mb-3">
@@ -106,6 +105,7 @@
 
                 <!-- Add to Cart -->
                 <div class="d-flex gap-3 mb-4">
+                    <form asp-controller="ShoppingCart" asp-action="AddToCart" method="post" class="d-flex align-items-center gap-2">
                     <div class="input-group" style="width: 130px;">
                         <button type="button" class="btn btn-outline-secondary" onclick="this.parentNode.querySelector('input').stepDown()">
                             <i class="bi bi-dash"></i>
@@ -118,6 +118,12 @@
                     <button type="submit" class="btn btn-primary btn-lg" @(Model.Product.StockQuantity <= 0 ? "disabled" : "")>
                         <i class="bi bi-cart-plus"></i> Add to Cart
                     </button>
+                  <button class="btn btn-outline-danger btn-lg" 
+                        data-product-id="@Model.Product.Id" onclick="addToWishlist(@Model.Product.Id)">
+                    <i class="bi @(Model.IsInWishlist ? "bi-heart-fill" : "bi-heart")"></i>
+                    @(Model.IsInWishlist ? "In Wishlist" : "Add to Wishlist")
+                </button>
+                </form>
                 </div>
 
                 <!-- Key Specs Preview -->
@@ -183,11 +189,85 @@
                             </table>
                         }
                     }
-                </div>  
+                </div> 
+             <!-- Reviews -->
+                <div class="tab-pane fade" id="reviews">
+                        @if (User.Identity?.IsAuthenticated == true)
+                            {
+                                <div class="card mb-4">
+                                    <div class="card-body">
+                                        <h6>Write a Review</h6>
+                                        <form asp-action="AddReview" method="post">
+                                            <input type="hidden" name="productId" value="@Model.Product.Id" />
+                                            <div class="mb-3">
+                                                <label class="form-label">Rating</label>
+                                                <div class="star-rating">
+                                                    @for (int i = 1; i <= 1; i++)
+                                                    {
+                                                        <input type="radio" name="Rating" value="@i" id="star@i" required />
+                                                        <label for="star@i"><i class="bi bi-star-fill"></i></label>
+                                                    }
+                                                </div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Title</label>
+                                                <input type="text" name="Title" class="form-control" maxlength="100" />
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Review</label>
+                                                <textarea name="Comment" class="form-control" rows="3" maxlength="1000"></textarea>
+                                            </div>
+                                            <button type="submit" class="btn btn-primary">Submit Review</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="alert alert-info">
+                                    Please <a asp-controller="Account" asp-action="Login">login</a> to write a review.
+                                </div>
+                            }
+                             @if (Model.Product.Reviews.Any())
+                            {
+                                @foreach (var review in Model.Product.Reviews.Where(r => r.IsApproved).OrderByDescending(r => r.CreatedAt))
+                                {
+                                    <div class="card mb-3">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between">
+                                                <div>
+                                                    <h6 class="mb-1">@review.User?.FullName</h6>
+                                                    <div class="text-warning">
+                                                        @for (int i = 1; i <= 5; i++)
+                                                        {
+                                                            <i class="bi @(i <= review.Rating ? "bi-star-fill" : "bi-star")"></i>
+                                                        }
+                                                    </div>
+                                                </div>
+                                                <small class="text-muted">@review.CreatedAt.ToString("MMM dd, yyyy")</small>
+                                            </div>
+                                            @if (!string.IsNullOrEmpty(review.Title))
+                                            {
+                                                <h6 class="mt-2">@review.Title</h6>
+                                            }
+                                            <p class="mb-0">@review.Comment</p>
+                                            @if (review.IsVerifiedPurchase)
+                                            {
+                                                <span class="badge bg-success mt-2"><i class="bi bi-check-circle"></i> Verified Purchase</span>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <p class="text-muted">No reviews yet. Be the first to review this product!</p>
+                            }
+                        </div>
+                </div>
             </div>
         </div>
     </div>
-
     <!-- Related Products -->
     @if (Model.RelatedProducts.Any())
     {
