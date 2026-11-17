@@ -5,21 +5,17 @@ namespace Winery.Data
 {
     public static class DbInitializer
     {
-        public static async Task SeedAsync(
-            IServiceProvider serviceProvider)
+        public static async Task SeedAsync(IServiceProvider serviceProvider)
         {
             using var scope = serviceProvider.CreateScope();
 
-            var context = scope.ServiceProvider 
-                .GetRequiredService<DbContext>();
+            var context = scope.ServiceProvider
+                .GetRequiredService<Winery.Data.DbContext>();
 
             var roleManager = scope.ServiceProvider
                 .GetRequiredService<RoleManager<IdentityRole>>();
 
-            // Apply pending migrations
             await context.Database.MigrateAsync();
-
-            // Seed Roles
             await SeedRolesAsync(roleManager);
         }
 
@@ -32,8 +28,7 @@ namespace Winery.Data
             {
                 if (!await roleManager.RoleExistsAsync(role))
                 {
-                    await roleManager.CreateAsync(
-                        new IdentityRole(role));
+                    await roleManager.CreateAsync(new IdentityRole(role));
                 }
             }
         }

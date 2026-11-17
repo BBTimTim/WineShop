@@ -14,9 +14,6 @@ namespace Winery.Models
         [Display(Name = "Product Name")]
         public string Name { get; set; } = string.Empty;
 
-        [StringLength(100)]
-        public string? Model { get; set; }
-
         [StringLength(2000)]
         public string? Description { get; set; }
 

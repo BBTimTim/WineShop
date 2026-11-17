@@ -2,6 +2,99 @@ html {
   font-size: 14px;
 }
 
+:root {
+  --bs-primary: #005900;
+  --bs-primary-rgb: 0, 89, 0;
+}
+
+/* Button theme */
+.btn-primary,
+.btn-secondary {
+  color: #fff;
+  background-color: #000;
+  border-color: #000;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active,
+.btn-secondary:hover,
+.btn-secondary:focus,
+.btn-secondary:active {
+  color: #fff;
+  background-color: #343a40;
+  border-color: #343a40;
+}
+
+.btn-danger,
+.btn-outline-danger {
+  color: #fff;
+  background-color: #dc3545;
+  border-color: #dc3545;
+}
+
+.btn-danger:hover,
+.btn-danger:focus,
+.btn-danger:active,
+.btn-outline-danger:hover,
+.btn-outline-danger:focus,
+.btn-outline-danger:active {
+  color: #fff;
+  background-color: #343a40;
+  border-color: #343a40;
+}
+
+.btn-warning,
+.btn-outline-warning {
+  color: #f08c00;
+  background-color: transparent;
+  border: 1px solid #f08c00;
+}
+
+.btn-warning:hover,
+.btn-warning:focus,
+.btn-warning:active,
+.btn-outline-warning:hover,
+.btn-outline-warning:focus,
+.btn-outline-warning:active {
+  color: #fff;
+  background-color: #343a40;
+  border-color: #343a40;
+}
+
+.btn-outline-secondary {
+  color: #000;
+  background-color: transparent;
+  border-color: #000;
+}
+
+.btn-outline-secondary:hover,
+.btn-outline-secondary:focus,
+.btn-outline-secondary:active {
+  color: #fff;
+  background-color: #343a40;
+  border-color: #343a40;
+}
+
+.view-all-link {
+  color: #005900 !important;
+  background-color: transparent !important;
+}
+
+.view-all-link:hover,
+.view-all-link:focus,
+.view-all-link:active {
+  color: #fff !important;
+  background-color: #0F4D0F !important;
+}
+
+.dropdown-menu .dropdown-item:hover,
+.dropdown-menu .dropdown-item:focus,
+.dropdown-menu .dropdown-item:active {
+  color: #fff !important;
+  background-color: #0F4D0F !important;
+}
+
 @media (min-width: 768px) {
   html {
     font-size: 16px;
@@ -9,7 +102,7 @@ html {
 }
 
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #005900;
 }
 
 html {
@@ -18,7 +111,22 @@ html {
 }
 
 body {
-  margin-bottom: 60px;
+  min-height: 100vh;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+}
+
+.site-footer {
+  background-color: #005900 !important;
+}
+
+.navbar.bg-primary {
+  background-color: #005900 !important;
 }
 
 .form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {

@@ -1,20 +1,24 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using System.Threading.Tasks;
 using Winery.Models;
 using Winery.Services;
 using Winery.ViewModels;
-using System.Threading.Tasks;
 
 namespace Winery.Controllers
 {
     public class ProductsController : Controller
     {
         private readonly IProductService _productService;
-
+        private readonly UserManager<User> _userManager;
+        private readonly IShoppingCartService _cartService;
         // Injecting the Product Service through the constructor
-        public ProductsController(IProductService productService)
+        public ProductsController(IProductService productService, IShoppingCartService cartService, UserManager<User> userManager)
         {
             _productService = productService;
+            _cartService = cartService;
+            _userManager = userManager;
         }
  
        /// Displays a filtered and paginated list of products
@@ -41,7 +45,7 @@ namespace Winery.Controllers
 
             // Calling the service to handle the filtering logic
             var result = await _productService.GetProductsAsync(filter);
-
+            ViewBag.CartItemCount = await _cartService.GetCartItemCountAsync();
             return View(result);
         }
 
@@ -58,7 +62,11 @@ namespace Winery.Controllers
 
             // 4. Placeholder for Wishlist logic (can be expanded later)
             bool isInWishlist = false;
-
+            if (User.Identity?.IsAuthenticated == true)
+            {
+                var user = await _userManager.GetUserAsync(User);
+                isInWishlist = user?.WishlistItems.Any(w => w.ProductId == id) ?? false;
+            }
             // 5. Build the ViewModel
             var viewModel = new ProductDetailViewModel
             {
@@ -66,6 +74,7 @@ namespace Winery.Controllers
                 RelatedProducts = relatedProducts,
                 IsInWishlist = isInWishlist
             };
+            ViewBag.CartItemCount = await _cartService.GetCartItemCountAsync();
 
             return View(viewModel);
         }
@@ -93,5 +102,35 @@ namespace Winery.Controllers
 
             return Json(suggestions);
         }
+
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> AddReview(int productId, ReviewViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                TempData["Error"] = "Please fill in all required fields.";
+                return RedirectToAction(nameof(Details), new { id = productId });
+            }
+
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+            {
+                return Unauthorized();
+            }
+
+            var result = await _productService.AddReviewAsync(productId, user.Id, model);
+            if (result)
+            {
+                TempData["Success"] = "Thank you for your review!";
+            }
+            else
+            {
+                TempData["Error"] = "Failed to add review. Please try again.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id = productId });
+        }
+
     }
 }

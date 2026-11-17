@@ -15,6 +15,7 @@ namespace Winery.Services
         Task UpdateCartItemAsync(int cartItemId, int quantity);
         Task RemoveFromCartAsync(int cartItemId);
         Task ClearCartAsync();
+        Task MigrateCartAsync(string userId);
     }
 
     public class ShoppingCartService : IShoppingCartService
@@ -92,7 +93,7 @@ namespace Winery.Services
                 }).ToList(),
                 CartTotal = cartItems.Sum(c => c.Product.SalePrice * c.Quantity),
                 ItemCount = cartItems.Sum(c => c.Quantity),
-                Tax = cartItems.Sum(c => c.Product.SalePrice * c.Quantity) * 0.18m,
+                Tax = cartItems.Sum(c => c.Product.SalePrice * c.Quantity) * 0.27m,
                 Shipping = cartItems.Sum(c => c.Product.SalePrice * c.Quantity) > 50000 ? 0 : 500
             };
 
@@ -142,6 +143,22 @@ namespace Winery.Services
 
             _context.ShoppingCartItems.RemoveRange(cartItems);
             await _context.SaveChangesAsync();
+        }
+
+        public async Task MigrateCartAsync(string userId)
+        {
+            var cartId = GetCartId();
+            var cartItems = await _context.ShoppingCartItems
+                .Where(c => c.CartId == cartId)
+                .ToListAsync();
+
+            foreach (var item in cartItems)
+            {
+                item.CartId = userId;
+            }
+
+            await _context.SaveChangesAsync();
+            _httpContextAccessor.HttpContext?.Session.Remove("CartId");
         }
     }
 }
